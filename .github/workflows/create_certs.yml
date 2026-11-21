@@ -49,7 +49,7 @@ jobs:
       - name: Check and create or update Distribution certificate and profiles if needed
         run: |
           echo "Running Fastlane certs lane..."
-          bundle exec fastlane certs || true # ignore and continue on errors without annotating an exit code
+          bundle exec fastlane certs
 
       - name: Check Distribution certificate and launch Nuke certificates if needed
         run: bundle exec fastlane check_and_renew_certificates
