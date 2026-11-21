@@ -3,7 +3,7 @@ run-name: Build LoopFollow (${{ github.ref_name }})
 on:
   workflow_dispatch:
   schedule:
-    # Check for updates every Sunday
+    # Monthly maintenance build check every Sunday; automatic upstream merging is disabled to protect local signing fixes
     #   Later logic builds if there are updates or if it is the 2nd Sunday of the month
     - cron: "17 10 * * 0" # Sunday at UTC 10:17
 
@@ -98,7 +98,7 @@ jobs:
       - name: Sync upstream changes
         if: | # do not run the upstream sync action on the upstream repository
           steps.workflow-permission.outputs.has_permission == 'true' &&
-          vars.SCHEDULED_SYNC != 'false' && github.event_name != 'workflow_dispatch' && github.repository_owner != 'loopandlearn'
+          vars.SCHEDULED_SYNC != 'false' && github.event_name == 'repository_dispatch' && github.repository_owner != 'loopandlearn'
         id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.2
         with:
