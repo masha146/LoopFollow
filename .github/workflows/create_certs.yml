@@ -20,7 +20,7 @@ jobs:
   create_certs:
     name: Certificates
     needs: validate
-    runs-on: macos-15
+    runs-on: xcode-27
     outputs:
       new_certificate_needed: ${{ steps.set_output.outputs.new_certificate_needed }}
 
@@ -85,6 +85,7 @@ jobs:
 
           # Check if FORCE_NUKE_CERTS is set to true
           if [ "$FORCE_NUKE_CERTS" = "true" ]; then
-            echo "::warning::FORCE_NUKE_CERTS is set, but automatic certificate revocation is disabled."
+            echo "::warning::‼️ Nuking of certificates was forced because the repository variable FORCE_NUKE_CERTS is set to 'true'."
           fi
 
+  # Automatic certificate revocation is intentionally disabled.
