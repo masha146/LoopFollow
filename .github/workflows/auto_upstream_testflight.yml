@@ -1,0 +1,70 @@
+name: 5. Automatically update LoopFollow
+run-name: Check upstream LoopFollow updates
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 9 * * *"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: loopfollow-upstream-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Merge upstream code without overwriting local signing workflows
+        id: sync
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/loopandlearn/LoopFollow.git
+          git fetch upstream main
+          BASE=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/main)
+          if git merge-base --is-ancestor "$UPSTREAM" HEAD; then
+            echo "Upstream is already integrated; no new build needed."
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Merge code changes. If there are unresolvable conflicts, stop rather
+          # than overwrite the working app or credentials.
+          if ! git merge --no-commit --no-ff -X ours upstream/main; then
+            git merge --abort || true
+            echo "::error::Upstream merge requires manual review; existing main was not changed."
+            exit 1
+          fi
+          # Preserve fork-specific automation, signing safeguards and build setup.
+          git restore --source="$BASE" --staged --worktree -- .github/workflows/
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Integrate upstream LoopFollow updates while preserving safe CI configuration"
+          else
+            # Record upstream integration even if all changes were in protected files.
+            git commit --allow-empty -m "Record upstream LoopFollow integration"
+          fi
+          git push origin HEAD:main
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build and upload the new version to TestFlight
+        if: steps.sync.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          gh workflow run build_LoopFollow.yml --repo "${{ github.repository }}" --ref main
+          echo "Upstream update integrated; requested automatic TestFlight build." >> "$GITHUB_STEP_SUMMARY"
