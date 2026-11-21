@@ -1,0 +1,29 @@
+name: 6. Notify when LoopFollow automation fails
+on:
+  workflow_run:
+    workflows:
+      - "4. Build LoopFollow"
+      - "5. Automatically update LoopFollow"
+    types: [completed]
+
+permissions:
+  issues: write
+  actions: read
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create assigned GitHub alert for a failed update or TestFlight build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TITLE="LoopFollow automation failed (run $RUN_ID)"
+          BODY=$(printf 'The automatic LoopFollow update or TestFlight build failed.\n\nWorkflow: %s\nRun: %s\n\nOpen the run to inspect the error. The last successful TestFlight build is not removed.\n' "$RUN_NAME" "$RUN_URL")
+          gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" --assignee "${{ github.repository_owner }}"
